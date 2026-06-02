@@ -55,7 +55,7 @@ If this plugin is listed in a shared marketplace (e.g. `superbereza/superbereza-
 
 ### Other agents
 
-The same `skills/` directory is exposed to **Cursor** (`.cursor-plugin/`), **Codex** (`.codex-plugin/`) and **Gemini** (`gemini-extension.json` → [`GEMINI.md`](GEMINI.md)). One skill, one source of truth — see [`AGENTS.md`](AGENTS.md).
+The same `skills/` directory is exposed to **Cursor** (`.cursor-plugin/`), **Codex** (`.codex-plugin/`) and **Gemini** (`gemini-extension.json` → [`AGENTS.md`](AGENTS.md)). One skill, one source of truth — see [`AGENTS.md`](AGENTS.md).
 
 Run `things doctor --pretty` after install to verify everything's wired up:
 
@@ -250,7 +250,7 @@ repo copy).
 ## Uninstall
 
 ```bash
-./uninstall.sh
+./scripts/uninstall.sh
 ```
 
 Removes the launcher, the skill symlink, and the `.venv/`. The cloned repo stays.
