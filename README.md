@@ -2,7 +2,7 @@
 
 A small Python CLI for [Things 3](https://culturedcode.com/things/) — read your inbox / today / upcoming / projects / areas / tags, search, add todos and projects, complete, cancel, update, batch-edit. Outputs JSON, designed for piping into `jq` or being driven by an AI agent.
 
-Ships with a [Claude Code skill](https://code.claude.com/docs/en/skills) (`SKILL.md`) so an agent can read and update Things tasks automatically. Once installed, Claude will be told to run `things today` proactively at the start of a session and reach for `things add` / `things complete` when the conversation turns to tasks.
+Ships an agent **skill** at [`skills/things/SKILL.md`](skills/things/SKILL.md) so an agent can read and update Things tasks automatically — run `things today` proactively at the start of a session and reach for `things add` / `things complete` when the conversation turns to tasks. The same skill is wired up for **Claude Code, Cursor, Codex and Gemini** from one source (see [Install](#install)).
 
 ## How it works
 
@@ -10,7 +10,7 @@ Ships with a [Claude Code skill](https://code.claude.com/docs/en/skills) (`SKILL
 - **Writes** go through the [Things URL scheme](https://culturedcode.com/things/help/url-scheme/) via `osascript` so Things processes them natively.
 - **Auth token** for `update` / `complete` / `cancel` / `tag-*` is fetched via `things.token()`.
 
-CLI logic lives in a single Python script (`bin/things`) and runs inside a dedicated `.venv/` created by `install.sh`. Both `uv` and stdlib `venv` + `pip` are supported.
+CLI logic lives in a single Python script (`bin/things.py`); `bin/things` is a thin self-bootstrapping launcher that creates a dedicated `.venv/` on first run and execs the script through it (works whether called directly, via symlink, or from a plugin dir). Both `uv` and stdlib `venv` + `pip` are supported.
 
 ## Install
 
@@ -20,19 +20,42 @@ Requirements:
 - macOS (Things 3 is Mac-only)
 - Things 3 with URL scheme enabled — open Things → Settings → General → "Enable Things URLs"
 
+There are three ways to install — pick one. All end with the same `things` CLI and `things` skill; the `.venv/` is built automatically on first run.
+
+### 1. Standalone (clone + symlinks)
+
 ```bash
-git clone https://github.com/<you>/things-cli ~/dev/things-cli
+git clone https://github.com/superbereza/things-cli ~/dev/things-cli
 cd ~/dev/things-cli
 ./install.sh
 ```
 
-`install.sh` is idempotent and does three things:
+`install.sh` is idempotent and just creates two symlinks:
 
-1. Creates `.venv/` inside the repo and installs `things.py` from `requirements.txt`. Uses `uv` if available, falls back to `python3 -m venv` + `pip` otherwise.
-2. Writes a one-line launcher at `~/.local/bin/things` that invokes the script through the venv's Python.
-3. Symlinks `SKILL.md` into `~/.claude/skills/things/` so new Claude Code sessions pick it up.
+- `~/.local/bin/things` → `bin/things` (CLI on your `$PATH` — the installer warns if `~/.local/bin` isn't on it)
+- `~/.claude/skills/things` → `skills/things` (skill for new Claude Code sessions)
 
-`~/.local/bin` must be on your `$PATH`. The installer warns if it isn't.
+### 2. As a Claude Code plugin (this repo is its own marketplace)
+
+```text
+/plugin marketplace add superbereza/things-cli
+/plugin install things@things-cli
+```
+
+No symlinks, no clone — Claude pulls the repo, loads `skills/things/SKILL.md`, and the first `things …` call builds the venv. The skill calls the bundled `${CLAUDE_PLUGIN_ROOT}/bin/things` launcher when `things` isn't on PATH.
+
+### 3. From an aggregate marketplace
+
+If this plugin is listed in a shared marketplace (e.g. `superbereza/superbereza-skills`):
+
+```text
+/plugin marketplace add superbereza/superbereza-skills
+/plugin install things@superbereza-skills
+```
+
+### Other agents
+
+The same `skills/` directory is exposed to **Cursor** (`.cursor-plugin/`), **Codex** (`.codex-plugin/`) and **Gemini** (`gemini-extension.json` → [`GEMINI.md`](GEMINI.md)). One skill, one source of truth — see [`AGENTS.md`](AGENTS.md).
 
 Run `things doctor --pretty` after install to verify everything's wired up:
 
@@ -139,7 +162,7 @@ things doctor --pretty      # human-readable table
 
 ## Output contract (for agents / scripts)
 
-Reads return a JSON **array** of items; the full schema is documented in [SKILL.md](SKILL.md#output-contract).
+Reads return a JSON **array** of items; the full schema is documented in [skills/things/SKILL.md](skills/things/SKILL.md#output-contract).
 
 Common todo fields:
 
@@ -205,13 +228,24 @@ Run `things <command> --help` for per-command flags.
 - **UUIDs are 22-char base62.** The validator on `complete` / `cancel` / `update` / `tag-*` rejects anything else with a clear `INVALID_UUID` error — usually the cause is forgetting to leave a shell variable unquoted: use `things complete $uuids`, not `things complete "$uuids"`.
 - **`--grep` filters in Python** after fetching everything from SQLite. Fine for the typical Things database (hundreds of items), not a substitute for SQL pushdown on huge collections.
 
-## Claude Code skill
+## The skill
 
-`SKILL.md` is symlinked into `~/.claude/skills/things/SKILL.md` by `install.sh`. New Claude Code sessions pick it up automatically — the current one does not (skills load at session start).
+The skill lives at `skills/things/SKILL.md` — the single source of truth, shared
+across agents:
 
-The skill description tells Claude to use `things` whenever the user mentions tasks/today/inbox/etc., and to run `things today` proactively at the start of a session.
+- **Claude Code** — `install.sh` symlinks `skills/things` into `~/.claude/skills/`,
+  or the plugin install exposes it. New sessions pick it up (the current one does
+  not — skills load at session start).
+- **Cursor / Codex** — `.cursor-plugin/plugin.json` and `.codex-plugin/plugin.json`
+  point at the same `./skills/`.
+- **Gemini** — reads [`GEMINI.md`](GEMINI.md) (declared in `gemini-extension.json`).
 
-Disable temporarily: `rm ~/.claude/skills/things/SKILL.md` (removes the symlink only, leaves the repo copy).
+The skill description tells the agent to use `things` whenever the user mentions
+tasks/today/inbox/etc., and to run `things today` proactively at the start of a
+session.
+
+Disable the Claude symlink temporarily: `rm ~/.claude/skills/things` (leaves the
+repo copy).
 
 ## Uninstall
 

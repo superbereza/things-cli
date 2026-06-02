@@ -1,0 +1,19 @@
+{
+  "name": "things",
+  "description": "Read and write Things 3 tasks from the CLI — inbox/today/projects, search, add/complete/update. JSON output, built for AI agents. Ships a `things` skill.",
+  "version": "0.1.0",
+  "author": {
+    "name": "superbereza"
+  },
+  "homepage": "https://github.com/superbereza/things-cli",
+  "repository": "https://github.com/superbereza/things-cli",
+  "keywords": [
+    "things3",
+    "tasks",
+    "todo",
+    "productivity",
+    "cli",
+    "macos",
+    "skills"
+  ]
+}

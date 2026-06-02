@@ -1,0 +1,15 @@
+{
+  "name": "things-cli",
+  "description": "Self-marketplace for the things plugin (Things 3 CLI + agent skill)",
+  "owner": {
+    "name": "superbereza"
+  },
+  "plugins": [
+    {
+      "name": "things",
+      "description": "Read/write Things 3 tasks — CLI + agent skill",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}
