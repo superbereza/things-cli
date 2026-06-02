@@ -258,3 +258,7 @@ Removes the launcher, the skill symlink, and the `.venv/`. The cloned repo stays
 ## Credits
 
 CLI logic ported from [hald/things-mcp](https://github.com/hald/things-mcp) (an MCP server for Things 3). Uses [thingsapi/things.py](https://github.com/thingsapi/things.py) for SQLite reads.
+
+## OpenCode
+
+This skill also supports [OpenCode](https://opencode.ai) — see [`.opencode/INSTALL.md`](.opencode/INSTALL.md).

@@ -13,7 +13,7 @@ import time
 import urllib.parse
 from typing import Any, Dict, Iterable, List, Optional
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # things.py — optional dependency for reads & for fetching the auth token.
