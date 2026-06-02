@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # things — self-bootstrapping launcher for the Things 3 CLI.
 #
-# Resolves its own repo (even when invoked via a symlink or from a plugin dir),
-# creates the venv on first run, then execs the Python CLI. No separate setup
-# step needed — works the same whether installed standalone (`./install.sh`) or
-# pulled in as a plugin (`/plugin install things@...`).
+# Resolves its own repo (even via a symlink or from a plugin dir), creates the
+# venv + editable install on first run, then execs the real `things` entry point.
+# Works the same standalone (`./install.sh`) or as a plugin (`/plugin install`).
 
 set -euo pipefail
 
@@ -18,21 +17,20 @@ done
 ROOT=$(cd -P "$(dirname "$src")/.." && pwd)
 
 VENV="$ROOT/.venv"
-REQ="$ROOT/requirements.txt"
 
-# --- bootstrap venv on first run (lazy) ------------------------------------
-if [ ! -x "$VENV/bin/python" ]; then
+# --- bootstrap venv + editable install on first run (lazy) -----------------
+if [ ! -x "$VENV/bin/things" ]; then
     command -v python3 >/dev/null 2>&1 || {
         echo "things: python3 not found — install Python 3.10+" >&2; exit 1; }
     echo "things: first run — setting up venv at $VENV ..." >&2
     if command -v uv >/dev/null 2>&1; then
         uv venv "$VENV" >/dev/null
-        uv pip install --quiet --python "$VENV/bin/python" -r "$REQ"
+        uv pip install --quiet --python "$VENV/bin/python" -e "$ROOT"
     else
         python3 -m venv "$VENV"
         "$VENV/bin/pip" install --quiet --upgrade pip
-        "$VENV/bin/pip" install --quiet -r "$REQ"
+        "$VENV/bin/pip" install --quiet -e "$ROOT"
     fi
 fi
 
-exec "$VENV/bin/python" "$ROOT/bin/things.py" "$@"
+exec "$VENV/bin/things" "$@"

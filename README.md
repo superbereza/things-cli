@@ -10,7 +10,7 @@ Ships an agent **skill** at [`skills/things/SKILL.md`](skills/things/SKILL.md) s
 - **Writes** go through the [Things URL scheme](https://culturedcode.com/things/help/url-scheme/) via `osascript` so Things processes them natively.
 - **Auth token** for `update` / `complete` / `cancel` / `tag-*` is fetched via `things.token()`.
 
-CLI logic lives in a single Python script (`bin/things.py`); `bin/things` is a thin self-bootstrapping launcher that creates a dedicated `.venv/` on first run and execs the script through it (works whether called directly, via symlink, or from a plugin dir). Both `uv` and stdlib `venv` + `pip` are supported.
+CLI logic is a small Python package (`src/things_cli/`, declared in `pyproject.toml` with a `things` entry point). `bin/things` is a thin self-bootstrapping launcher that creates a dedicated `.venv/`, installs the package editable on first run, and execs the `things` entry point (works whether called directly, via symlink, or from a plugin dir). Both `uv` and stdlib `venv` + `pip` are supported.
 
 ## Install
 
