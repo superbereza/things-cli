@@ -328,63 +328,71 @@ def cmd_show(args):
 
 
 def main():
+    # Shared --pretty flag for every subcommand.
+    # Convention: `things <cmd> --pretty` (after the subcommand, like git).
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument('--pretty', '-p', action='store_true', help='Pretty print JSON')
+
     parser = argparse.ArgumentParser(
         description='Things 3 CLI',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Read operations (require things.py library)
-  cli.py inbox
-  cli.py today
-  cli.py search "meeting"
-  cli.py projects --items
+  things inbox
+  things today --pretty
+  things search "meeting"
+  things projects --items
 
   # Write operations (work without things.py)
-  cli.py add "Buy milk"
-  cli.py add "Read article" --notes "https://example.com" --when today
-  cli.py add "Task" --list "Work" --tags "urgent,important"
-  cli.py add-project "New Project" --todos "Task 1" --todos "Task 2"
-  cli.py complete <uuid>
-  cli.py show today
+  things add "Buy milk"
+  things add "Read article" --notes "https://example.com" --when today
+  things add "Task" --list "Work" --tags "urgent,important"
+  things add-project "New Project" --todos "Task 1" --todos "Task 2"
+  things complete <uuid>
+  things show today
         """
     )
-    parser.add_argument('--pretty', '-p', action='store_true', help='Pretty print JSON')
 
     subparsers = parser.add_subparsers(dest='command', help='Commands')
 
+    def sub(name, **kwargs):
+        """Create a subparser that inherits --pretty from `common`."""
+        return subparsers.add_parser(name, parents=[common], **kwargs)
+
     # Read commands
-    sp = subparsers.add_parser('inbox', help='Get inbox todos')
+    sp = sub('inbox', help='Get inbox todos')
     sp.set_defaults(func=cmd_inbox)
 
-    sp = subparsers.add_parser('today', help='Get today todos')
+    sp = sub('today', help='Get today todos')
     sp.set_defaults(func=cmd_today)
 
-    sp = subparsers.add_parser('upcoming', help='Get upcoming todos')
+    sp = sub('upcoming', help='Get upcoming todos')
     sp.set_defaults(func=cmd_upcoming)
 
-    sp = subparsers.add_parser('anytime', help='Get anytime todos')
+    sp = sub('anytime', help='Get anytime todos')
     sp.set_defaults(func=cmd_anytime)
 
-    sp = subparsers.add_parser('someday', help='Get someday todos')
+    sp = sub('someday', help='Get someday todos')
     sp.set_defaults(func=cmd_someday)
 
-    sp = subparsers.add_parser('projects', help='Get all projects')
+    sp = sub('projects', help='Get all projects')
     sp.add_argument('--items', '-i', action='store_true', help='Include tasks')
     sp.set_defaults(func=cmd_projects)
 
-    sp = subparsers.add_parser('areas', help='Get all areas')
+    sp = sub('areas', help='Get all areas')
     sp.add_argument('--items', '-i', action='store_true', help='Include projects')
     sp.set_defaults(func=cmd_areas)
 
-    sp = subparsers.add_parser('tags', help='Get all tags')
+    sp = sub('tags', help='Get all tags')
     sp.set_defaults(func=cmd_tags)
 
-    sp = subparsers.add_parser('search', help='Search todos')
+    sp = sub('search', help='Search todos')
     sp.add_argument('query', help='Search query')
     sp.set_defaults(func=cmd_search)
 
     # Write commands
-    sp = subparsers.add_parser('add', help='Add a todo')
+    sp = sub('add', help='Add a todo')
     sp.add_argument('title', help='Todo title')
     sp.add_argument('--notes', '-n', help='Notes/description')
     sp.add_argument('--when', '-w', help='When: today, tomorrow, evening, anytime, someday, or YYYY-MM-DD')
@@ -394,7 +402,7 @@ Examples:
     sp.add_argument('--checklist', '-c', action='append', help='Checklist item (can repeat)')
     sp.set_defaults(func=cmd_add)
 
-    sp = subparsers.add_parser('add-project', help='Add a project')
+    sp = sub('add-project', help='Add a project')
     sp.add_argument('title', help='Project title')
     sp.add_argument('--notes', '-n', help='Notes')
     sp.add_argument('--when', '-w', help='When to start')
@@ -404,11 +412,11 @@ Examples:
     sp.add_argument('--todos', action='append', help='Initial todo (can repeat)')
     sp.set_defaults(func=cmd_add_project)
 
-    sp = subparsers.add_parser('complete', help='Mark todo as completed')
+    sp = sub('complete', help='Mark todo as completed')
     sp.add_argument('uuid', help='Todo UUID')
     sp.set_defaults(func=cmd_complete)
 
-    sp = subparsers.add_parser('update', help='Update existing todo')
+    sp = sub('update', help='Update existing todo')
     sp.add_argument('uuid', help='Todo UUID')
     sp.add_argument('--title', help='New title')
     sp.add_argument('--notes', '-n', help='New notes')
@@ -417,7 +425,7 @@ Examples:
     sp.add_argument('--tags', '-t', help='New tags')
     sp.set_defaults(func=cmd_update)
 
-    sp = subparsers.add_parser('show', help='Show item in Things app')
+    sp = sub('show', help='Show item in Things app')
     sp.add_argument('id', help='Item ID or: inbox, today, upcoming, anytime, someday, logbook')
     sp.add_argument('--query', '-q', help='Filter query')
     sp.set_defaults(func=cmd_show)
