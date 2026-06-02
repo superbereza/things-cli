@@ -1,0 +1,435 @@
+#!/usr/bin/env python3
+"""Things 3 CLI - based on things-mcp by hald.
+
+Read operations use things.py library (SQLite).
+Write operations use Things URL scheme.
+"""
+import argparse
+import json
+import subprocess
+import sys
+import urllib.parse
+from typing import Optional, List, Dict, Any
+
+# Try to import things library for read operations
+try:
+    import things
+    HAS_THINGS_LIB = True
+except ImportError:
+    HAS_THINGS_LIB = False
+
+
+# ============== URL Scheme (Write Operations) ==============
+
+def execute_url(url: str) -> None:
+    """Execute a Things URL without bringing Things to foreground."""
+    try:
+        subprocess.run([
+            'osascript', '-e',
+            f'tell application "Things3" to open location "{url}"'
+        ], check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError:
+        import webbrowser
+        webbrowser.open(url)
+
+
+def construct_url(command: str, params: Dict[str, Any]) -> str:
+    """Construct a Things URL from command and parameters."""
+    url = f"things:///{command}"
+
+    # Get auth token for update operations
+    if command in ['update', 'update-project'] and HAS_THINGS_LIB:
+        token = things.token()
+        if token:
+            params['auth-token'] = token
+
+    if params:
+        encoded_params = []
+        for key, value in params.items():
+            if value is None:
+                continue
+            if isinstance(value, bool):
+                value = str(value).lower()
+            elif isinstance(value, list):
+                value = ','.join(str(v) for v in value)
+            encoded_params.append(f"{key}={urllib.parse.quote(str(value))}")
+        url += "?" + "&".join(encoded_params)
+
+    return url
+
+
+# ============== Formatters ==============
+
+def format_todo(todo: dict) -> dict:
+    """Format todo for JSON output."""
+    result = {
+        'uuid': todo.get('uuid'),
+        'title': todo.get('title'),
+        'type': todo.get('type'),
+        'status': todo.get('status'),
+    }
+
+    if todo.get('notes'):
+        result['notes'] = todo['notes']
+    if todo.get('start'):
+        result['list'] = todo['start']
+    if todo.get('start_date'):
+        result['start_date'] = todo['start_date']
+    if todo.get('deadline'):
+        result['deadline'] = todo['deadline']
+    if todo.get('tags'):
+        result['tags'] = todo['tags']
+    if todo.get('checklist'):
+        result['checklist'] = todo['checklist']
+
+    # Resolve project/area names
+    if todo.get('project') and HAS_THINGS_LIB:
+        try:
+            project = things.get(todo['project'])
+            if project:
+                result['project'] = project['title']
+        except:
+            pass
+
+    if todo.get('area') and HAS_THINGS_LIB:
+        try:
+            area = things.get(todo['area'])
+            if area:
+                result['area'] = area['title']
+        except:
+            pass
+
+    return result
+
+
+def format_project(project: dict, include_items: bool = False) -> dict:
+    """Format project for JSON output."""
+    result = {
+        'uuid': project.get('uuid'),
+        'title': project.get('title'),
+        'type': 'project',
+    }
+
+    if project.get('notes'):
+        result['notes'] = project['notes']
+
+    if project.get('area') and HAS_THINGS_LIB:
+        try:
+            area = things.get(project['area'])
+            if area:
+                result['area'] = area['title']
+        except:
+            pass
+
+    if include_items and HAS_THINGS_LIB:
+        todos = things.todos(project=project['uuid'])
+        if todos:
+            result['tasks'] = [t['title'] for t in todos]
+
+    return result
+
+
+# ============== Commands ==============
+
+def cmd_inbox(args):
+    """Get todos from Inbox."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed. Run: pip install things.py'}))
+        return
+
+    todos = things.inbox(include_items=True)
+    result = [format_todo(t) for t in todos] if todos else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_today(args):
+    """Get todos due today."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    todos = things.today(include_items=True)
+    result = [format_todo(t) for t in todos] if todos else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_upcoming(args):
+    """Get upcoming todos."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    todos = things.upcoming(include_items=True)
+    result = [format_todo(t) for t in todos] if todos else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_anytime(args):
+    """Get anytime todos."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    todos = things.anytime(include_items=True)
+    result = [format_todo(t) for t in todos] if todos else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_someday(args):
+    """Get someday todos."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    todos = things.someday(include_items=True)
+    result = [format_todo(t) for t in todos] if todos else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_projects(args):
+    """Get all projects."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    projects = things.projects()
+    result = [format_project(p, args.items) for p in projects] if projects else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_areas(args):
+    """Get all areas."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    areas = things.areas()
+    result = []
+    for area in (areas or []):
+        a = {'uuid': area['uuid'], 'title': area['title']}
+        if args.items:
+            projects = things.projects(area=area['uuid'])
+            if projects:
+                a['projects'] = [p['title'] for p in projects]
+        result.append(a)
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_tags(args):
+    """Get all tags."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    tags = things.tags()
+    result = [{'uuid': t['uuid'], 'title': t['title']} for t in (tags or [])]
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_search(args):
+    """Search todos."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed'}))
+        return
+
+    todos = things.search(args.query, include_items=True)
+    result = [format_todo(t) for t in todos] if todos else []
+    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+
+
+def cmd_add(args):
+    """Add a new todo."""
+    params = {'title': args.title}
+
+    if args.notes:
+        params['notes'] = args.notes
+    if args.when:
+        params['when'] = args.when
+    if args.deadline:
+        params['deadline'] = args.deadline
+    if args.tags:
+        params['tags'] = args.tags
+    if args.list:
+        params['list'] = args.list
+    if args.checklist:
+        params['checklist-items'] = '\n'.join(args.checklist)
+
+    url = construct_url('add', params)
+    execute_url(url)
+    print(json.dumps({'status': 'ok', 'title': args.title}, ensure_ascii=False))
+
+
+def cmd_add_project(args):
+    """Add a new project."""
+    params = {'title': args.title}
+
+    if args.notes:
+        params['notes'] = args.notes
+    if args.when:
+        params['when'] = args.when
+    if args.deadline:
+        params['deadline'] = args.deadline
+    if args.tags:
+        params['tags'] = args.tags
+    if args.area:
+        params['area'] = args.area
+    if args.todos:
+        params['to-dos'] = '\n'.join(args.todos)
+
+    url = construct_url('add-project', params)
+    execute_url(url)
+    print(json.dumps({'status': 'ok', 'title': args.title}, ensure_ascii=False))
+
+
+def cmd_complete(args):
+    """Mark todo as completed."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed (needed for auth token)'}))
+        return
+
+    params = {'id': args.uuid, 'completed': True}
+    url = construct_url('update', params)
+    execute_url(url)
+    print(json.dumps({'status': 'ok', 'uuid': args.uuid, 'completed': True}, ensure_ascii=False))
+
+
+def cmd_update(args):
+    """Update existing todo."""
+    if not HAS_THINGS_LIB:
+        print(json.dumps({'error': 'things library not installed (needed for auth token)'}))
+        return
+
+    params = {'id': args.uuid}
+    if args.title:
+        params['title'] = args.title
+    if args.notes:
+        params['notes'] = args.notes
+    if args.when:
+        params['when'] = args.when
+    if args.deadline:
+        params['deadline'] = args.deadline
+    if args.tags:
+        params['tags'] = args.tags
+
+    url = construct_url('update', params)
+    execute_url(url)
+    print(json.dumps({'status': 'ok', 'uuid': args.uuid}, ensure_ascii=False))
+
+
+def cmd_show(args):
+    """Show item in Things app."""
+    # id can be: inbox, today, upcoming, anytime, someday, logbook, or UUID
+    params = {'id': args.id}
+    if args.query:
+        params['query'] = args.query
+    url = construct_url('show', params)
+    execute_url(url)
+    print(json.dumps({'status': 'ok', 'showing': args.id}, ensure_ascii=False))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Things 3 CLI',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Read operations (require things.py library)
+  cli.py inbox
+  cli.py today
+  cli.py search "meeting"
+  cli.py projects --items
+
+  # Write operations (work without things.py)
+  cli.py add "Buy milk"
+  cli.py add "Read article" --notes "https://example.com" --when today
+  cli.py add "Task" --list "Work" --tags "urgent,important"
+  cli.py add-project "New Project" --todos "Task 1" --todos "Task 2"
+  cli.py complete <uuid>
+  cli.py show today
+        """
+    )
+    parser.add_argument('--pretty', '-p', action='store_true', help='Pretty print JSON')
+
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+
+    # Read commands
+    sp = subparsers.add_parser('inbox', help='Get inbox todos')
+    sp.set_defaults(func=cmd_inbox)
+
+    sp = subparsers.add_parser('today', help='Get today todos')
+    sp.set_defaults(func=cmd_today)
+
+    sp = subparsers.add_parser('upcoming', help='Get upcoming todos')
+    sp.set_defaults(func=cmd_upcoming)
+
+    sp = subparsers.add_parser('anytime', help='Get anytime todos')
+    sp.set_defaults(func=cmd_anytime)
+
+    sp = subparsers.add_parser('someday', help='Get someday todos')
+    sp.set_defaults(func=cmd_someday)
+
+    sp = subparsers.add_parser('projects', help='Get all projects')
+    sp.add_argument('--items', '-i', action='store_true', help='Include tasks')
+    sp.set_defaults(func=cmd_projects)
+
+    sp = subparsers.add_parser('areas', help='Get all areas')
+    sp.add_argument('--items', '-i', action='store_true', help='Include projects')
+    sp.set_defaults(func=cmd_areas)
+
+    sp = subparsers.add_parser('tags', help='Get all tags')
+    sp.set_defaults(func=cmd_tags)
+
+    sp = subparsers.add_parser('search', help='Search todos')
+    sp.add_argument('query', help='Search query')
+    sp.set_defaults(func=cmd_search)
+
+    # Write commands
+    sp = subparsers.add_parser('add', help='Add a todo')
+    sp.add_argument('title', help='Todo title')
+    sp.add_argument('--notes', '-n', help='Notes/description')
+    sp.add_argument('--when', '-w', help='When: today, tomorrow, evening, anytime, someday, or YYYY-MM-DD')
+    sp.add_argument('--deadline', '-d', help='Deadline: YYYY-MM-DD')
+    sp.add_argument('--tags', '-t', help='Comma-separated tags')
+    sp.add_argument('--list', '-l', help='Project or area name')
+    sp.add_argument('--checklist', '-c', action='append', help='Checklist item (can repeat)')
+    sp.set_defaults(func=cmd_add)
+
+    sp = subparsers.add_parser('add-project', help='Add a project')
+    sp.add_argument('title', help='Project title')
+    sp.add_argument('--notes', '-n', help='Notes')
+    sp.add_argument('--when', '-w', help='When to start')
+    sp.add_argument('--deadline', '-d', help='Deadline')
+    sp.add_argument('--tags', '-t', help='Comma-separated tags')
+    sp.add_argument('--area', '-a', help='Area name')
+    sp.add_argument('--todos', action='append', help='Initial todo (can repeat)')
+    sp.set_defaults(func=cmd_add_project)
+
+    sp = subparsers.add_parser('complete', help='Mark todo as completed')
+    sp.add_argument('uuid', help='Todo UUID')
+    sp.set_defaults(func=cmd_complete)
+
+    sp = subparsers.add_parser('update', help='Update existing todo')
+    sp.add_argument('uuid', help='Todo UUID')
+    sp.add_argument('--title', help='New title')
+    sp.add_argument('--notes', '-n', help='New notes')
+    sp.add_argument('--when', '-w', help='New when')
+    sp.add_argument('--deadline', '-d', help='New deadline')
+    sp.add_argument('--tags', '-t', help='New tags')
+    sp.set_defaults(func=cmd_update)
+
+    sp = subparsers.add_parser('show', help='Show item in Things app')
+    sp.add_argument('id', help='Item ID or: inbox, today, upcoming, anytime, someday, logbook')
+    sp.add_argument('--query', '-q', help='Filter query')
+    sp.set_defaults(func=cmd_show)
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    args.func(args)
+
+
+if __name__ == '__main__':
+    main()
