@@ -42,3 +42,9 @@ things doctor                                   # diagnose
 Notes: `--wait` returns the real `uuid` after an add; don't quote `$uuids` when
 forwarding from a query (`things complete $uuids`); `--when` = start date,
 `--deadline` = due date. Full output contract and edge cases: see the skill file.
+## Maintainer note
+
+Changing a skill or its payload? It reaches installed plugins **only after a release** —
+`scripts/bump.sh <v>` → commit → tag `vX.Y.Z` → GitHub release → `/plugin update`. A commit on
+`main` alone propagates nothing (Claude/Codex cache plugins by version string). Full rule and the
+MAJOR/MINOR/PATCH guidance: the `skill-builder` skill, §7.
