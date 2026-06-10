@@ -13,7 +13,7 @@ import time
 import urllib.parse
 from typing import Any, Dict, Iterable, List, Optional
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # ---------------------------------------------------------------------------
 # things.py — optional dependency for reads & for fetching the auth token.
@@ -167,7 +167,8 @@ def format_todo(todo: dict) -> dict:
     return result
 
 
-def format_project(project: dict, include_items: bool = False) -> dict:
+def format_project(project: dict, include_items: bool = False,
+                   status: str = "incomplete") -> dict:
     result = {
         "uuid": project.get("uuid"),
         "title": project.get("title"),
@@ -184,7 +185,7 @@ def format_project(project: dict, include_items: bool = False) -> dict:
         except Exception:
             pass
     if include_items and HAS_THINGS_LIB:
-        todos = things.todos(project=project["uuid"]) or []
+        todos = query_todos(status, project=project["uuid"])
         result["tasks"] = [t["title"] for t in todos]
     return result
 
@@ -200,6 +201,39 @@ def apply_read_filters(items: list, args: argparse.Namespace,
     if limit and limit > 0:
         items = items[:limit]
     return items
+
+
+STATUS_CHOICES = ("incomplete", "completed", "canceled", "done", "all")
+
+
+def query_todos(status: str = "incomplete", **kwargs) -> list:
+    """things.todos with our extended status vocab.
+
+    done = completed + canceled (everything you've finished/dropped);
+    all  = any status. Otherwise passes through to things.py.
+    """
+    if not HAS_THINGS_LIB:
+        return []
+    if status == "all":
+        return things.todos(status=None, **kwargs) or []
+    if status == "done":
+        return ((things.todos(status="completed", **kwargs) or [])
+                + (things.todos(status="canceled", **kwargs) or []))
+    return things.todos(status=status, **kwargs) or []
+
+
+def resolve_scope(value: Optional[str], kind: str) -> Optional[str]:
+    """Resolve a project/area given by NAME or UUID to its UUID (passthrough if UUID)."""
+    if value is None or is_uuid(value):
+        return value
+    if not HAS_THINGS_LIB:
+        return value
+    pool = things.projects() if kind == "project" else things.areas()
+    for p in (pool or []):
+        if (p.get("title") or "") == value:
+            return p["uuid"]
+    die(f"{kind} not found by name: {value!r}", code="NOT_FOUND")
+    return None
 
 
 # ============================================================================
@@ -244,7 +278,24 @@ def cmd_someday(args):
 
 def cmd_projects(args):
     _require_lib()
-    out = [format_project(p, args.items) for p in (things.projects() or [])]
+    status = getattr(args, "status", "incomplete")
+    out = [format_project(p, args.items, status) for p in (things.projects() or [])]
+    print_json(apply_read_filters(out, args), args.pretty)
+
+
+def cmd_tasks(args):
+    """General todo query: filter by project / area / tag / status."""
+    _require_lib()
+    kwargs = {}
+    proj = resolve_scope(getattr(args, "project", None), "project")
+    area = resolve_scope(getattr(args, "area", None), "area")
+    if proj:
+        kwargs["project"] = proj
+    if area:
+        kwargs["area"] = area
+    if getattr(args, "tag", None):
+        kwargs["tag"] = args.tag
+    out = [format_todo(t) for t in query_todos(args.status, **kwargs)]
     print_json(apply_read_filters(out, args), args.pretty)
 
 
@@ -592,6 +643,9 @@ def main():
 Examples:
   things today --pretty
   things projects --items --grep "mac"
+  things tasks --project "Клод код" --status done      # audit what's closed in a project
+  things tasks --status done --limit 20                # recent logbook (completed + canceled)
+  things tasks --tag urgent                            # open tasks tagged urgent
   things search "meeting" --limit 5
   things add "Buy milk" --when today --tags shopping --wait
   echo '[{"title":"T1"},{"title":"T2","deadline":"2026-07-01"}]' \\
@@ -628,7 +682,17 @@ Examples:
     sp = sub_r("projects", help="Get all projects")
     sp.add_argument("--items", "-i", action="store_true",
                     help="Include each project's task titles")
+    sp.add_argument("--status", choices=STATUS_CHOICES, default="incomplete",
+                    help="With --items: which task statuses to list (default: incomplete)")
     sp.set_defaults(func=cmd_projects)
+
+    sp = sub_r("tasks", help="Query todos by project/area/tag/status (the general filter)")
+    sp.add_argument("--project", help="Filter by project (name OR UUID)")
+    sp.add_argument("--area", help="Filter by area (name OR UUID)")
+    sp.add_argument("--tag", help="Filter by tag")
+    sp.add_argument("--status", choices=STATUS_CHOICES, default="incomplete",
+                    help="incomplete (default) | completed | canceled | done | all")
+    sp.set_defaults(func=cmd_tasks)
 
     sp = sub_r("areas", help="Get all areas")
     sp.add_argument("--items", "-i", action="store_true",

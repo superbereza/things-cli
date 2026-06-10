@@ -18,10 +18,16 @@ Use `things` if it's on your PATH (it is after `install.sh`). If it isn't — e.
 things today                         # JSON array
 things today --pretty                # indented
 things today --grep "report" --limit 5
-things projects --items              # projects + their task titles
+things projects --items              # projects + their task titles (open only by default)
+things projects --items --status done   # ...including completed/canceled tasks
 things areas --items                 # areas + their projects
 things tags
 things search "meeting" --limit 10
+
+# General query — filter by project/area/tag/status (this is the one that reads CLOSED tasks)
+things tasks --project "Work" --status done       # audit what's done in a project
+things tasks --status done --limit 20             # recent logbook (completed + canceled)
+things tasks --tag urgent --status incomplete     # open tasks with a tag
 
 # Single write
 things add "Buy milk" --when today --tags shopping --wait
@@ -135,6 +141,32 @@ Exit code 1 on error.
 - `today` means "today's date as Things sees it" — at 23:55 it's still today; at 00:01 it's the next day.
 - `YYYY-MM-DD` works for both past and future. Setting a past date doesn't backdate the task; it just lands it where you put it.
 - `--when` and `--deadline` are **different**: `when` is "I plan to start on this date" (drives the Today/Upcoming lists), `deadline` is "must be done by" (shows a red flag near the date).
+
+## Reading closed tasks — `tasks` (the general filter)
+
+The list commands (`today`/`inbox`/`upcoming`/…) and `projects --items` show **only
+open** todos by default — they're views of "what's actionable". To read **completed
+or canceled** tasks (audit "what got done", logbook, etc.), use `tasks`, the general
+query that exposes the underlying filter:
+
+```bash
+things tasks --project <name|uuid> --status done     # everything closed in a project
+things tasks --status completed --limit 50           # the logbook
+things tasks --area Home --status all                # any status in an area
+```
+
+| Flag | Meaning |
+|---|---|
+| `--project <name\|uuid>` | scope to a project (name auto-resolved to UUID) |
+| `--area <name\|uuid>` | scope to an area |
+| `--tag <tag>` | scope to a tag |
+| `--status` | `incomplete` (default) · `completed` · `canceled` · `done` (= completed+canceled) · `all` |
+
+Same `--grep` / `--limit` / `--pretty` as the other reads. `projects --items` also
+takes `--status` to control which task titles it lists per project.
+
+> Without scope (`--project`/`--area`/`--tag`), `--status completed`/`done`/`all`
+> returns your **entire** logbook — pass `--limit`.
 
 ## Common workflows
 
