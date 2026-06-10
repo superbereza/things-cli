@@ -208,16 +208,31 @@ uuid=$(echo "$result" | jq -r .uuid)
 [ -n "$uuid" ] && echo "ok: $uuid" || echo "the write didn't show up in SQLite within 3s"
 ```
 
-If `--wait` times out the response is `{"status":"pending","title":"...","message":"..."}` rather than `ok` — the URL fired but Things didn't materialize the row in time. Usually Things is just slow or paused.
+If `--wait` times out the response is `{"status":"pending","title":"...","message":"..."}` rather than `ok` — the URL fired but Things didn't materialize the row in time. Usually Things is just slow or paused — **or two Things instances are running** (see the single-instance rule below).
 
 ## Tips for the agent
 
 - **Run `things today` once at session start** — it gives you context on what the user is juggling, lets you offer relevant help unprompted, and the UUIDs you see can be reused for `complete`/`update`/`cancel` without re-querying.
 - **Use `--wait` for any add the user might immediately want to manipulate** (e.g. they say "add Buy milk and tag it urgent" → `things add ... --wait`, then `things tag-add <returned uuid> urgent`).
 - **Batch through `--stdin`** when adding more than 2 items — N URL-scheme calls is N pops of Things' menubar; batching keeps it to one stream.
-- **`things doctor`** if anything write-related fails: it checks Things 3 is reachable, the auth token is available (needed for `complete`/`update`/`cancel`/`tag-*`), and the SQLite read path works.
+- **`things doctor`** if anything write-related fails: it checks Things 3 is reachable, the auth token is available (needed for `complete`/`update`/`cancel`/`tag-*`), the SQLite read path works, and that **only one Things instance is running** (a duplicate stalls Things Cloud sync).
 - **Don't quote `$uuids`** when forwarding from a query (`things complete $uuids`) — the validator will reject space-joined strings with a clear hint.
 - **No `trash` command** — Things' URL scheme can't delete; use `cancel` to mark "won't do" (✗) or `complete` to mark done (✓). Real deletion is GUI-only.
+
+## Only one Things instance
+
+**Never run two copies of the Things app at once.** Only one instance owns the
+Things Cloud sync connection; a second instance can grab that connection and then go
+stale, so the app looks open and writable but **silently stops syncing to Things
+Cloud** (other devices never receive the changes, and changes from them never arrive).
+Local writes still land in the SQLite DB, which masks the problem.
+
+- Symptom: writes succeed / `--wait` returns `ok`, the task is in the local DB and in
+  the app, but it **never reaches the phone/other devices** (and vice-versa).
+- Check: `pgrep -x Things3` — if it returns **more than one PID**, that's the bug.
+- Fix: quit the duplicate (keep one), or quit Things entirely and reopen a single
+  instance, then it resyncs. This is a *sync* problem, not a CLI problem — the CLI
+  read/write path keeps working either way.
 
 ## Limitations
 

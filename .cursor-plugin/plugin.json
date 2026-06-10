@@ -2,7 +2,7 @@
   "name": "things",
   "displayName": "Things 3 CLI",
   "description": "Read and write Things 3 tasks from the CLI — inbox/today/projects, search, add/complete/update. JSON output, built for AI agents.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "superbereza"
   },

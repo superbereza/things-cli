@@ -13,7 +13,7 @@ import time
 import urllib.parse
 from typing import Any, Dict, Iterable, List, Optional
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # things.py — optional dependency for reads & for fetching the auth token.
@@ -535,6 +535,24 @@ def cmd_doctor(args):
         except Exception as e:
             checks.append({"check": "Auth token", "status": "error",
                            "detail": str(e)})
+
+    # 5. Single Things instance (two instances stall Things Cloud sync)
+    try:
+        r = subprocess.run(["pgrep", "-x", "Things3"],
+                           capture_output=True, text=True, timeout=5)
+        pids = [p for p in r.stdout.split() if p.strip()]
+        if len(pids) <= 1:
+            checks.append({"check": "Single Things instance", "status": "ok",
+                           "detail": "1 running" if pids else "not running"})
+        else:
+            checks.append({"check": "Single Things instance", "status": "error",
+                           "detail": (f"{len(pids)} instances running (pids "
+                                      f"{', '.join(pids)}) — a duplicate can hold the "
+                                      "sync connection and stall Things Cloud sync; "
+                                      "quit the extra one")})
+    except Exception as e:
+        checks.append({"check": "Single Things instance", "status": "error",
+                       "detail": str(e)})
 
     overall_ok = all(c["status"] == "ok" for c in checks)
     if args.pretty:
