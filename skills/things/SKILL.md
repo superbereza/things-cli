@@ -40,6 +40,7 @@ echo '[
 
 # Update / move / cancel / complete
 things update UUID --list "Other Project"       # move
+things update UUID --append-checklist "Item"    # add a checklist line (keeps existing + their ✓)
 things complete UUID1 UUID2 UUID3               # variadic
 things cancel UUID                              # mark ✗ (not done)
 things tag-add UUID urgent important            # ADD without replacing
@@ -229,6 +230,22 @@ things add "Trip prep" \
 ```
 
 The values become bullet items inside the new todo.
+
+### Edit the checklist of an *existing* todo (`update`)
+
+`update` can also touch a todo's checklist. Repeat the flag for multiple items:
+
+```bash
+things update <uuid> --append-checklist "New item"     # add to the end, leave existing items + their ✓ untouched
+things update <uuid> --prepend-checklist "First item"  # add to the start
+things update <uuid> --checklist "Only" --checklist "These"   # REPLACE the whole checklist
+```
+
+- **`--append-checklist` / `--prepend-checklist`** are the safe ones: existing items
+  and their completion state are preserved — use these to "fill in what's missing".
+- **`--checklist`** REPLACES the entire checklist. That **drops the completion state**
+  of existing items (the URL scheme can't re-check individual items), so reach for it
+  only when you really want a clean slate.
 
 ### Verify a write actually landed
 

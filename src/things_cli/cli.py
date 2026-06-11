@@ -13,7 +13,7 @@ import time
 import urllib.parse
 from typing import Any, Dict, Iterable, List, Optional
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 # ---------------------------------------------------------------------------
 # things.py — optional dependency for reads & for fetching the auth token.
@@ -487,6 +487,12 @@ def cmd_update(args):
                 die(f'no project/area named "{args.list}"',
                     code="DESTINATION_NOT_FOUND")
             params["list-id"] = match["uuid"]
+    if args.checklist:
+        params["checklist-items"] = "\n".join(args.checklist)
+    if args.append_checklist:
+        params["append-checklist-items"] = "\n".join(args.append_checklist)
+    if args.prepend_checklist:
+        params["prepend-checklist-items"] = "\n".join(args.prepend_checklist)
     execute_url(construct_url("update", params))
     print_json({"status": "ok", "uuid": args.uuid}, args.pretty)
 
@@ -754,6 +760,13 @@ Examples:
                     help="REPLACE tags (comma-separated). Use tag-add/tag-remove for delta.")
     sp.add_argument("--list", "-l",
                     help="Move to project/area (name OR UUID — auto-resolved)")
+    sp.add_argument("--checklist", "-c", action="append",
+                    help="REPLACE the checklist with these item(s) (repeat the flag). "
+                         "Note: replacing drops completion state of existing items.")
+    sp.add_argument("--append-checklist", action="append",
+                    help="Append checklist item(s), leaving existing items untouched (repeat the flag)")
+    sp.add_argument("--prepend-checklist", action="append",
+                    help="Prepend checklist item(s) before existing ones (repeat the flag)")
     sp.set_defaults(func=cmd_update)
 
     sp = sub("tag-add", help="Add tag(s) to a todo (preserves existing tags)")
