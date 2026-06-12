@@ -20,7 +20,7 @@ Requirements:
 - macOS (Things 3 is Mac-only)
 - Things 3 with URL scheme enabled — open Things → Settings → General → "Enable Things URLs"
 
-Install the skill via the plugin (option 1 or 3); add the standalone shell CLI (option 2) if you also want to run `things` by hand. The `.venv/` is built automatically on first run.
+Install via the plugin. The `.venv/` is built automatically on first run.
 
 ### 1. As a Claude Code plugin (this repo is its own marketplace)
 
@@ -31,17 +31,7 @@ Install the skill via the plugin (option 1 or 3); add the standalone shell CLI (
 
 Claude pulls the repo, loads `skills/things/SKILL.md`, and the first `things …` call builds the venv. The plugin's `bin/` is auto-added to PATH, so the skill just calls `things`.
 
-### 2. The `things` CLI on your own shell (optional)
-
-```bash
-git clone https://github.com/superbereza/things-cli ~/dev/things-cli
-cd ~/dev/things-cli
-./install.sh   # symlinks ~/.local/bin/things → bin/things (warns if ~/.local/bin isn't on $PATH)
-```
-
-For running `things` by hand in your terminal. The skill comes from the plugin (option 1), so `install.sh` no longer symlinks it.
-
-### 3. From an aggregate marketplace
+### 2. From an aggregate marketplace
 
 If this plugin is listed in a shared marketplace (e.g. `superbereza/superbereza-skills`):
 
@@ -242,11 +232,7 @@ session.
 
 ## Uninstall
 
-```bash
-./scripts/uninstall.sh
-```
-
-Removes the `~/.local/bin/things` launcher symlink and the `.venv/`. The cloned repo stays.
+`/plugin uninstall things@things-cli`. (If you cloned the repo, just delete the clone — its `.venv/` lives inside it.)
 
 ## Credits
 
