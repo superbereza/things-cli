@@ -20,29 +20,26 @@ Requirements:
 - macOS (Things 3 is Mac-only)
 - Things 3 with URL scheme enabled — open Things → Settings → General → "Enable Things URLs"
 
-There are three ways to install — pick one. All end with the same `things` CLI and `things` skill; the `.venv/` is built automatically on first run.
+Install the skill via the plugin (option 1 or 3); add the standalone shell CLI (option 2) if you also want to run `things` by hand. The `.venv/` is built automatically on first run.
 
-### 1. Standalone (clone + symlinks)
-
-```bash
-git clone https://github.com/superbereza/things-cli ~/dev/things-cli
-cd ~/dev/things-cli
-./install.sh
-```
-
-`install.sh` is idempotent and just creates two symlinks:
-
-- `~/.local/bin/things` → `bin/things` (CLI on your `$PATH` — the installer warns if `~/.local/bin` isn't on it)
-- `~/.claude/skills/things` → `skills/things` (skill for new Claude Code sessions)
-
-### 2. As a Claude Code plugin (this repo is its own marketplace)
+### 1. As a Claude Code plugin (this repo is its own marketplace)
 
 ```text
 /plugin marketplace add superbereza/things-cli
 /plugin install things@things-cli
 ```
 
-No symlinks, no clone — Claude pulls the repo, loads `skills/things/SKILL.md`, and the first `things …` call builds the venv. The skill calls the bundled `${CLAUDE_PLUGIN_ROOT}/bin/things` launcher when `things` isn't on PATH.
+Claude pulls the repo, loads `skills/things/SKILL.md`, and the first `things …` call builds the venv. The plugin's `bin/` is auto-added to PATH, so the skill just calls `things`.
+
+### 2. The `things` CLI on your own shell (optional)
+
+```bash
+git clone https://github.com/superbereza/things-cli ~/dev/things-cli
+cd ~/dev/things-cli
+./install.sh   # symlinks ~/.local/bin/things → bin/things (warns if ~/.local/bin isn't on $PATH)
+```
+
+For running `things` by hand in your terminal. The skill comes from the plugin (option 1), so `install.sh` no longer symlinks it.
 
 ### 3. From an aggregate marketplace
 
@@ -233,9 +230,8 @@ Run `things <command> --help` for per-command flags.
 The skill lives at `skills/things/SKILL.md` — the single source of truth, shared
 across agents:
 
-- **Claude Code** — `install.sh` symlinks `skills/things` into `~/.claude/skills/`,
-  or the plugin install exposes it. New sessions pick it up (the current one does
-  not — skills load at session start).
+- **Claude Code** — the plugin install exposes it. New sessions pick it up (the
+  current one does not — skills load at session start).
 - **Cursor / Codex** — `.cursor-plugin/plugin.json` and `.codex-plugin/plugin.json`
   point at the same `./skills/`.
 - **Gemini** — reads [`GEMINI.md`](GEMINI.md) (declared in `gemini-extension.json`).
@@ -244,16 +240,13 @@ The skill description tells the agent to use `things` whenever the user mentions
 tasks/today/inbox/etc., and to run `things today` proactively at the start of a
 session.
 
-Disable the Claude symlink temporarily: `rm ~/.claude/skills/things` (leaves the
-repo copy).
-
 ## Uninstall
 
 ```bash
 ./scripts/uninstall.sh
 ```
 
-Removes the launcher, the skill symlink, and the `.venv/`. The cloned repo stays.
+Removes the `~/.local/bin/things` launcher symlink and the `.venv/`. The cloned repo stays.
 
 ## Credits
 

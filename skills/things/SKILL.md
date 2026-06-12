@@ -9,7 +9,7 @@ Reads from Things via the [`things.py`](https://github.com/thingsapi/things.py) 
 
 ## Running the CLI
 
-Use `things` if it's on your PATH (it is after `install.sh`). If it isn't — e.g. when this skill was pulled in as a plugin — run the bundled launcher instead: `${CLAUDE_PLUGIN_ROOT}/bin/things` (or `./bin/things` from the repo). It builds its own Python venv on first run, so there's no separate setup step. Everything below works the same either way — substitute the launcher path for `things`.
+Call `things` directly. It builds its own Python venv on first run, so there's no separate setup step.
 
 ## Cheat sheet
 

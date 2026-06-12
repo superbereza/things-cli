@@ -12,9 +12,7 @@ The same skill is wired up for several coding agents from one source:
 
 ## Invoking the CLI
 
-`things` is on PATH after `./install.sh`. Otherwise call `./bin/things` from this
-repo (or `${CLAUDE_PLUGIN_ROOT}/bin/things` when loaded as a plugin). The launcher
-builds its own venv on first run — no setup step.
+Call `things` directly. The launcher builds its own venv on first run — no setup step.
 
 ## Cheat sheet
 
