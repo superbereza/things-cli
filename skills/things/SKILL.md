@@ -1,6 +1,6 @@
 ---
 name: things
-description: Use this skill to read and write tasks in Things 3 (the macOS task manager) via the `things` CLI. Trigger whenever the user mentions Things, asks "what's on today", "what's in my inbox", "what's due", "what do I need to do"; mentions tasks/todos/projects/areas/tags/deadlines; or wants to add, complete, cancel, update, search, or batch-edit tasks. Also use proactively at the start of a session — run `things today` so you know what's on the user's plate. Output is JSON; pass `--pretty` for indented output while debugging, omit it when parsing.
+description: Use this skill for ANY interaction with Things 3 (the macOS task manager) — it is the only supported way to read or write Things. Never reach for `osascript`/AppleScript or a raw `things:///` URL yourself; the `things` CLI wraps them correctly (and AppleScript literally cannot create or even read checklists). Trigger whenever the user mentions Things, asks "what's on today", "what's in my inbox", "what's due", "what do I need to do"; mentions tasks/todos/projects/areas/tags/deadlines/checklists; or wants to add, complete, cancel, update, search, batch-edit, or attach checklists to tasks. Also use proactively at the start of a session — run `things today` so you know what's on the user's plate. Output is JSON; pass `--pretty` for indented output while debugging, omit it when parsing.
 ---
 
 # Things 3 CLI (`things`)
@@ -219,6 +219,12 @@ things update <uuid> --tags "x,y"         # REPLACES all tags (advanced)
 ```
 
 ### `--checklist` for `add`
+
+> **Checklists go through THIS CLI — never AppleScript/`osascript`.** Things' AppleScript
+> dictionary has no `checklist items` element: you can't *create or even read* them that way
+> (`osascript` errors with "found plural class name"). The raw `things:///add?…&checklist-items=`
+> URL works but is fiddly to encode — these flags wrap it correctly. Add to a specific project
+> with `--list "Project Name"`.
 
 Repeat the flag for multiple lines:
 
